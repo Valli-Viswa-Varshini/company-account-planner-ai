@@ -1,0 +1,48 @@
+/* Main Background */
+.stApp {
+    background-color: #0e1117;
+    color: #fafafa;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background-color: #262730;
+}
+
+/* Headers */
+h1, h2, h3 {
+    font-family: 'Inter', sans-serif;
+    color: #ffffff;
+}
+
+/* Buttons */
+.stButton > button {
+    background: linear-gradient(90deg, #ff4b4b 0%, #ff9068 100%);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1rem;
+    font-weight: 600;
+    transition: transform 0.2s;
+}
+
+.stButton > button:hover {
+    transform: scale(1.05);
+}
+
+/* Text Areas */
+.stTextArea textarea {
+    background-color: #1c1f26;
+    color: #ffffff;
+    border: 1px solid #4a4e69;
+    border-radius: 8px;
+}
+
+/* Cards/Containers */
+div[data-testid="stVerticalBlock"] > div {
+    background-color: #1c1f26;
+    padding: 1rem;
+    border-radius: 10px;
+    border: 1px solid #2d303e;
+    margin-bottom: 1rem;
+}
