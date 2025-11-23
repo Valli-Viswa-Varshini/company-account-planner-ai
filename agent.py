@@ -141,20 +141,10 @@ def synthesize_node(state: AgentState):
     data = "\n".join(state["research_data"])
     company = state["company"]
     
-    from langchain_core.output_parsers import JsonOutputParser
+    from langchain_core.output_parsers import StrOutputParser
     from langchain_core.prompts import PromptTemplate
-    from pydantic import BaseModel, Field
-
-    # Define the desired data structure using Pydantic
-    class AccountPlan(BaseModel):
-        overview: str = Field(description="Company overview")
-        products_services: str = Field(description="Key products and services")
-        markets_customers: str = Field(description="Target markets and customer segments")
-        opportunities: str = Field(description="Strategic opportunities")
-        risks: str = Field(description="Potential risks")
-        recommended_actions: str = Field(description="Recommended next steps")
-
-    parser = JsonOutputParser(pydantic_object=AccountPlan)
+    import json
+    import re
 
     prompt_template = PromptTemplate(
         template="""
@@ -163,20 +153,75 @@ def synthesize_node(state: AgentState):
         {data}
         
         Generate a comprehensive Strategic Account Plan.
-        {format_instructions}
         
-        Ensure the content is professional, detailed, and actionable.
+        IMPORTANT: Keep descriptions CONCISE and use BULLET POINTS. Avoid long paragraphs.
+        Limit each section to 3-5 key points.
+        
+        Output the content in the following EXACT format (do not use JSON):
+        
+        ===OVERVIEW===
+        (Brief company overview here)
+        
+        ===PRODUCTS===
+        (Key products/services here)
+        
+        ===MARKETS===
+        (Target markets here)
+        
+        ===OPPORTUNITIES===
+        (Strategic opportunities here)
+        
+        ===RISKS===
+        (Potential risks here)
+        
+        ===ACTIONS===
+        (Recommended next steps here)
         """,
-        input_variables=["company", "data"],
-        partial_variables={"format_instructions": parser.get_format_instructions()}
+        input_variables=["company", "data"]
     )
 
-    chain = prompt_template | llm | parser
-
+    chain = prompt_template | llm | StrOutputParser()
+    
     try:
-        result = chain.invoke({"company": company, "data": data})
-        return {"plan_sections": result}
+        raw_result = chain.invoke({"company": company, "data": data})
+        
+        # Parse using regex or simple splitting
+        sections = {
+            "overview": "N/A",
+            "products_services": "N/A",
+            "markets_customers": "N/A",
+            "opportunities": "N/A",
+            "risks": "N/A",
+            "recommended_actions": "N/A"
+        }
+        
+        # Helper to extract section
+        def extract_section(text, start_marker, end_marker=None):
+            try:
+                if start_marker not in text: return "N/A"
+                start = text.index(start_marker) + len(start_marker)
+                if end_marker and end_marker in text:
+                    end = text.index(end_marker)
+                    return text[start:end].strip()
+                # If no end marker (last section) or end marker not found, take rest of text
+                # But we need to be careful not to take subsequent sections if end_marker is None
+                # So let's split by the next known marker if possible
+                return text[start:].strip()
+            except:
+                return "N/A"
+
+        # Robust extraction
+        sections["overview"] = extract_section(raw_result, "===OVERVIEW===", "===PRODUCTS===")
+        sections["products_services"] = extract_section(raw_result, "===PRODUCTS===", "===MARKETS===")
+        sections["markets_customers"] = extract_section(raw_result, "===MARKETS===", "===OPPORTUNITIES===")
+        sections["opportunities"] = extract_section(raw_result, "===OPPORTUNITIES===", "===RISKS===")
+        sections["risks"] = extract_section(raw_result, "===RISKS===", "===ACTIONS===")
+        sections["recommended_actions"] = extract_section(raw_result, "===ACTIONS===")
+        
+        return {"plan_sections": sections}
+        
     except Exception as e:
+        print(f"Parse Error: {e}")
         return {
             "plan_sections": {
                 "overview": f"Error generating plan: {e}",
