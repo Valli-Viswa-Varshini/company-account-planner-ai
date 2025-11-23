@@ -3,8 +3,15 @@ from pydantic import BaseModel
 import os
 from dotenv import load_dotenv
 
-# Load env BEFORE importing agent
-load_dotenv()
+# Force reload .env file
+load_dotenv(override=True)
+
+# Debug: Print first 10 chars of API key to verify it's the new one
+key = os.getenv("GEMINI_API_KEY")
+if key:
+    print(f"DEBUG: Loaded GEMINI_API_KEY starting with: {key[:10]}...")
+else:
+    print("DEBUG: GEMINI_API_KEY not found!")
 
 from agent import graph
 from langchain_google_genai import ChatGoogleGenerativeAI
@@ -51,11 +58,29 @@ class ConversationManager:
         # Build context from history
         context = "\n".join([f"{h['role']}: {h['content']}" for h in history[-3:]])
         
-        prompt = f"""You are a helpful research assistant. Analyze this user message and determine:
-1. Is the user asking to research a company? (yes/no)
-2. What is the company name? (extract it, or say "unknown")
-3. What are their research goals? (extract specific interests, or say "general overview")
-4. Should we ask a clarifying question? (yes/no, and what question)
+        prompt = f"""You are a helpful, conversational AI Research Assistant. 
+Your goal is to help users research companies and generate strategic account plans.
+
+Analyze the user's message and the conversation history.
+
+SCENARIOS:
+1. **Research Request**: User wants to research a specific company.
+   - Action: Extract 'company' and 'goals'. Set 'wants_research' to true.
+   
+2. **Confused/Exploratory User**: User asks for suggestions (e.g., "suggest tech companies", "I don't know what to research").
+   - Action: You MUST provide helpful suggestions. List 3-4 relevant companies they might be interested in.
+   - Set 'wants_research' to false.
+   - Set 'response' to your helpful suggestion message.
+
+3. **Clarification Needed**: User is vague but implies a specific company (e.g., "the big search company").
+   - Action: Ask a clarifying question.
+   - Set 'wants_research' to false.
+   - Set 'response' to your clarifying question.
+
+4. **Off-Topic/Chit-Chat**: User says "hello", "how are you", or asks unrelated questions.
+   - Action: Be polite but gently guide them back to company research.
+   - Set 'wants_research' to false.
+   - Set 'response' to a polite reply redirecting to research.
 
 Previous conversation:
 {context}
@@ -65,10 +90,9 @@ User message: {message}
 Respond in JSON format:
 {{
     "wants_research": true/false,
-    "company": "company name or unknown",
+    "company": "company name or null",
     "goals": "specific goals or general overview",
-    "needs_clarification": true/false,
-    "clarifying_question": "question to ask or null"
+    "response": "Your conversational response here (for scenarios 2, 3, 4)"
 }}
 """
         
@@ -83,32 +107,13 @@ Respond in JSON format:
                 text = json_match.group(1)
             return json.loads(text)
         except:
-            # Fallback: simple keyword detection
-            message_lower = message.lower()
-            if any(word in message_lower for word in ['research', 'tell me about', 'analyze', 'account plan']):
-                # Try to extract company name (simple heuristic)
-                words = message.split()
-                company = "unknown"
-                for i, word in enumerate(words):
-                    if word.lower() in ['about', 'on', 'for'] and i + 1 < len(words):
-                        company = words[i + 1].strip('.,!?')
-                        break
-                
-                return {
-                    "wants_research": True,
-                    "company": company,
-                    "goals": "general overview",
-                    "needs_clarification": company == "unknown",
-                    "clarifying_question": "Which company would you like me to research?" if company == "unknown" else None
-                }
-            else:
-                return {
-                    "wants_research": False,
-                    "company": "unknown",
-                    "goals": "",
-                    "needs_clarification": True,
-                    "clarifying_question": "I can help you research companies and generate strategic account plans. Which company are you interested in?"
-                }
+            # Fallback for parsing errors
+            return {
+                "wants_research": False,
+                "company": None,
+                "goals": "",
+                "response": "I can help you research companies. Could you tell me which company you're interested in, or ask for suggestions?"
+            }
 
 conversation_manager = ConversationManager()
 
@@ -121,17 +126,8 @@ async def chat(request: ResearchRequest):
             # Parse user intent
             intent = conversation_manager.parse_intent(request.message, request.conversation_history)
             
-            # If needs clarification, ask question
-            if intent.get("needs_clarification"):
-                yield json.dumps({
-                    "type": "message",
-                    "role": "assistant",
-                    "content": intent["clarifying_question"]
-                }) + "\n"
-                return
-            
-            # If user wants research
-            if intent.get("wants_research") and intent["company"] != "unknown":
+            # If user wants research and we have a company
+            if intent.get("wants_research") and intent.get("company") and intent["company"] != "unknown":
                 # Send acknowledgment
                 yield json.dumps({
                     "type": "message",
@@ -153,12 +149,13 @@ async def chat(request: ResearchRequest):
                 for event in graph.stream(initial_state):
                     yield json.dumps({"type": "agent_event", "data": event}) + "\n"
                     await asyncio.sleep(0.1)
+            
             else:
-                # Handle off-topic or unclear requests
+                # Handle conversational responses (Suggestions, Clarifications, Off-topic)
                 yield json.dumps({
                     "type": "message",
                     "role": "assistant",
-                    "content": "I specialize in researching companies and creating strategic account plans. Could you tell me which company you'd like to learn about?"
+                    "content": intent.get("response", "I specialize in researching companies. Which one would you like to explore?")
                 }) + "\n"
                 
         except Exception as e:

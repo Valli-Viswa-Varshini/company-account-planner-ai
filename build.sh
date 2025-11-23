@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Build script for Render
+set -e  # Exit on error
 
-# Install Python dependencies
+echo "Installing Python dependencies..."
 pip install -r requirements.txt
 
-# Build frontend
+echo "Building frontend..."
 cd frontend
-npm install
+npm ci  # Clean install
 npm run build
 cd ..
+
+echo "Build complete!"
+ls -la frontend/dist  # Verify build output
