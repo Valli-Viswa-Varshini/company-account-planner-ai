@@ -1,71 +1,101 @@
-# AI Company Research Agent - Deployment Guide
+# 🚀 AI Company Research Agent - Deployment Guide
 
-## 🌐 Live Demo
-[Add your deployed URL here after deployment]
-
-## 📦 Deployment Instructions (Render)
-
-### Prerequisites
-- GitHub account
-- Render account (free): https://render.com
-- API Keys: Gemini, Tavily
-
-### Step 1: Push to GitHub
-```bash
-git init
-git add .
-git commit -m "Initial commit"
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/YOUR_REPO.git
-git push -u origin main
-```
-
-### Step 2: Deploy on Render
-
-1. Go to https://render.com and sign in
-2. Click **"New +"** → **"Web Service"**
-3. Connect your GitHub repository
-4. Configure:
-   - **Name**: `ai-research-agent`
-   - **Environment**: `Python 3`
-   - **Build Command**: `./build.sh`
-   - **Start Command**: `uvicorn server:app --host 0.0.0.0 --port $PORT`
-   - **Instance Type**: `Free`
-
-5. Add Environment Variables:
-   - `GEMINI_API_KEY`: Your Gemini API key
-   - `TAVILY_API_KEY`: Your Tavily API key
-
-6. Click **"Create Web Service"**
-
-### Step 3: Update Frontend API URL
-
-After deployment, update `frontend/src/App.jsx`:
-```javascript
-// Change this line (around line 42):
-const response = await fetch('http://localhost:8000/api/chat', {
-
-// To your Render URL:
-const response = await fetch('https://YOUR-APP-NAME.onrender.com/api/chat', {
-```
-
-Then push the update:
-```bash
-git add .
-git commit -m "Update API URL"
-git push
-```
-
-Render will auto-redeploy!
+## 🌍 Live Demo
+🔗 https://company-account-planner-ai.onrender.com  
+(If inactive for a while, Render will display "Waking Up..." — please wait a moment!)
 
 ---
 
-## 🏃‍♂️ Local Development
+## 📦 Deployment Instructions (Render)
 
-See main README.md for local setup instructions.
+### ✔ Prerequisites
+- GitHub account with the project pushed
+- Render account (Free): https://render.com
+- API Keys required:
+  - `GEMINI_API_KEY`
+  - `TAVILY_API_KEY` 
+
+---
+
+### 🛠 Step 1 — Deploy Backend (FastAPI)
+
+1️⃣ Go to Render  
+2️⃣ Click **New + → Web Service**  
+3️⃣ Connect your GitHub repository  
+4️⃣ Configure settings:
+
+| Setting | Value |
+|--------|------|
+| Name | ai-company-research-backend |
+| Runtime | Python 3 |
+| Build Command | `pip install -r requirements.txt` |
+| Start Command | `uvicorn server:app --host 0.0.0.0 --port $PORT` |
+| Instance Type | Free |
+
+5️⃣ Add Environment Variables:
+
+GEMINI_API_KEY = YOUR_KEY
+TAVILY_API_KEY = YOUR_KEY 
+
+
+
+Click **Deploy Web Service** 🎉
+
+---
+
+### 🎨 Step 2 — Deploy Frontend (React UI)
+
+1️⃣ Click **New + → Static Site**  
+2️⃣ Select the same GitHub repo  
+3️⃣ Configure:
+
+| Setting | Value |
+|--------|------|
+| Build Command | `npm install && npm run build` |
+| Publish directory | `frontend/dist` |
+| Instance | Free |
+
+4️⃣ Update backend URL in:
+
+📌 `frontend/src/App.jsx`
+```js
+const API_URL = "https://company-account-planner-ai.onrender.com//api/chat";
+```
+
+Then push changes:
+```
+git add .
+git commit -m "Updated API URL for Render"
+git push
+```
+
+Render will automatically rebuild 🔁
+
+## 🧪 Local Development
+
+## Backend:
+```
+pip install -r requirements.txt
+uvicorn server:app --reload
+```
+
+## Frontend:
+```
+cd frontend
+npm install
+npm run dev
+```
+
+Open 👉 http://localhost:5173
 
 ## 🎥 Demo Video
-[Add YouTube/Loom link here]
+
+📌 Uploaded to Google Drive
+🔗 [https://drive.google.com/file/d/1io0Krqgh1MM0QlENgNqqd7iw5xChC70W/view?usp=sharing](https://drive.google.com/file/d/1io0Krqgh1MM0QlENgNqqd7iw5xChC70W/view?usp=sharing)
 
 ## 📧 Contact
-[Your email/GitHub]
+
+Valli Viswa Varshini M
+📩 Email: valliviswavarshini@gmail.com
+
+GitHub: https://github.com/Valli-Viswa-Varshini
